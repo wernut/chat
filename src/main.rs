@@ -18,7 +18,7 @@ fn load_sentences(path: &str) -> Vec<String> {
 
 fn main() {
     println!("Loading vocabulary...");
-    let sentences = load_sentences("C:/Users/werne/source/repos/wernut/chat/chat_input.text");
+    let sentences = load_sentences("./chat_input.text");
     let sentence_refs: Vec<&str> = sentences.iter().map(|s| s.as_str()).collect();
     let vocabulary: Vocabulary = Vocabulary::new(&sentence_refs);
 
@@ -29,9 +29,9 @@ fn main() {
         .read_line(&mut input_string)
         .expect("Failed to read the line.");
 
-    let input = input_string.trim().to_lowercase();
+    let input = input_string.trim();
 
-    let path = "C:/Users/werne/source/repos/wernut/chat/models/";
+    let path = "./models/";
     let new_version = version_helper::get_next_model_version_index(path);
 
     let neural_network = if input == "y" {

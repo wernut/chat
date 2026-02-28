@@ -13,7 +13,7 @@ impl NeuralNetwork {
 
             let input_string_parts: Vec<String> = input_string
                 .split_whitespace()
-                .map(|w| w.to_string().to_lowercase())
+                .map(|w| w.to_string())
                 .collect();
 
             if input_string_parts.len() != 2 {
@@ -21,24 +21,37 @@ impl NeuralNetwork {
                 break;
             }
 
-            let mut first_word: String = input_string_parts[0].clone();
-            let mut second_word: String = input_string_parts[1].clone();
+            let mut first_token: String = input_string_parts[0].clone();
+            let mut second_token: String = input_string_parts[1].clone();
 
-            let mut words: Vec<String> =
-                vec![input_string_parts[0].clone(), input_string_parts[1].clone()];
+            let mut tokens: Vec<String> = vec![
+                input_string_parts[0].clone(),
+                " ".to_string(),
+                input_string_parts[1].clone(),
+            ];
 
             'word_gen: loop {
-                match self.predict(first_word.as_str(), second_word.as_str(), &vocabulary) {
-                    Ok(predicted_word) => {
-                        if predicted_word.is_empty() {
+                match self.predict(first_token.as_str(), second_token.as_str(), &vocabulary) {
+                    Ok(predicted_token) => {
+                        if predicted_token.is_empty() {
                             break 'word_gen;
                         }
-                        first_word = second_word;
-                        second_word = predicted_word.clone();
-                        words.push(predicted_word);
-                        if words.len() > 20 {
+
+                        if Self::is_punc(&predicted_token) {
+                            tokens.push(predicted_token.clone());
+                        } else {
+                            if !Self::is_joiner(&second_token) {
+                                tokens.push(" ".to_string());
+                            }
+                            tokens.push(predicted_token.clone());
+                        }
+
+                        if tokens.len() > 20 {
                             break 'word_gen;
                         }
+
+                        first_token = second_token;
+                        second_token = predicted_token.clone();
                     }
                     Err(e) => {
                         println!("Error: {}", e);
@@ -47,8 +60,26 @@ impl NeuralNetwork {
                 }
             }
 
-            let generated_sentence = words.join(" ");
+            let generated_sentence = tokens.join("");
             println!("Output: {}", generated_sentence);
         }
+    }
+
+    fn is_punc(token: &String) -> bool {
+        for c in token.chars() {
+            if c.is_ascii_punctuation() {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn is_joiner(token: &String) -> bool {
+        for c in token.chars() {
+            if c == '\'' || c == '-' {
+                return true;
+            }
+        }
+        return false;
     }
 }
