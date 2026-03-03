@@ -1,40 +1,57 @@
 use crate::{nn::NeuralNetwork, vocabulary::Vocabulary};
+use rand;
 
 impl NeuralNetwork {
     pub fn predict(
         &self,
-        word1: &str,
-        word2: &str,
+        words: &Vec<String>,
         vocabulary: &Vocabulary,
+        probability_cut_off: f32,
+        temperature: f32,
     ) -> Result<String, String> {
-        let first_word_index = match vocabulary.get_index(word1) {
-            Some(value) => value,
-            None => return Err("Could not find first word in the vocabulary.".to_string()),
-        };
+        let mut word_indexes: Vec<usize> = Vec::new();
+        for word in words {
+            match vocabulary.get_index(&word) {
+                Some(index) => word_indexes.push(index),
+                None => {
+                    return Err(
+                        format!("Could not find word '{}' in the vocabulary.", word).to_string()
+                    )
+                }
+            };
+        }
 
-        let second_word_index = match vocabulary.get_index(word2) {
-            Some(value) => value,
-            None => return Err("Could not find second word in the vocabulary.".to_string()),
-        };
+        let forward_pass = self.forward(&word_indexes);
 
-        let forward_pass = self.forward([first_word_index, second_word_index]);
-        let predicted_index = forward_pass
+        let temps: Vec<f32> = forward_pass
             .0
             .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .unwrap();
+            .map(|p| p.powf(1.0 / temperature))
+            .collect();
+        let sum: f32 = temps.iter().sum();
+        let probs: Vec<f32> = temps.iter().map(|p| p / sum).collect();
 
-        if *predicted_index.1 < 0.2f32 {
+        let random = rand::random::<f32>();
+        let mut cumulative = 0.0;
+        let mut predicted_index: usize = probs.len() - 1;
+        for (i, prob) in probs.iter().enumerate() {
+            cumulative += prob;
+            if cumulative > random {
+                predicted_index = i;
+                break;
+            }
+        }
+
+        if probs[predicted_index] < probability_cut_off {
             return Ok("".to_string());
         }
 
-        let predicted_word = match vocabulary.get_word(predicted_index.0) {
+        let predicted_word = match vocabulary.get_word(predicted_index) {
             Some(value) => value,
             None => {
                 return Err(format!(
                     "Predicted index does not exist in the vocabulary: {}",
-                    predicted_index.0
+                    predicted_index
                 ))
             }
         };

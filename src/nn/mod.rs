@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub mod backward;
 pub mod chat;
 pub mod forward;
+pub mod gradients;
 pub mod load;
 pub mod predict;
 pub mod save;
@@ -21,12 +22,20 @@ pub struct NeuralNetwork {
 }
 
 impl NeuralNetwork {
-    pub fn new(vocab_size: usize, embedding_dim: usize, hidden_size: usize) -> Self {
+    pub fn new(
+        vocab_size: usize,
+        embedding_dim: usize,
+        hidden_size: usize,
+        context_size: usize,
+    ) -> Self {
         NeuralNetwork {
-            embedding_table: Array2::random((vocab_size, embedding_dim), Uniform::new(-0.1, 0.1)),
-            weights_1: Array2::random((embedding_dim * 2, hidden_size), Uniform::new(-0.1, 0.1)),
+            embedding_table: Array2::random((vocab_size, embedding_dim), Uniform::new(-0.01, 0.01)),
+            weights_1: Array2::random(
+                (embedding_dim * context_size, hidden_size),
+                Uniform::new(-0.1, 0.1),
+            ),
             bias_1: Array1::zeros(hidden_size),
-            weights_2: Array2::random((hidden_size, vocab_size), Uniform::new(-0.1, 0.1)),
+            weights_2: Array2::random((hidden_size, vocab_size), Uniform::new(-0.01, 0.01)),
             bias_2: Array1::zeros(vocab_size),
         }
     }

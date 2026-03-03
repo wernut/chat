@@ -2,7 +2,7 @@ use walkdir::WalkDir;
 
 // Get the version from the model file name
 fn extract_version(file_name: &str) -> Option<u64> {
-    let without_ext = file_name.strip_suffix(".bin")?;
+    let without_ext = file_name.strip_suffix(".json")?;
     let (_, version_part) = without_ext.split_once('_')?;
     version_part.parse::<u64>().ok()
 }
