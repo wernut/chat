@@ -1,10 +1,18 @@
 use crate::nn::NeuralNetwork;
-use ndarray::{s, Array1, Axis};
+use ndarray::{s, Array1, Array2, Axis};
+
+struct Gradients {
+    weights_1: Array2<f32>,
+    bias_1: Array1<f32>,
+    weights_2: Array2<f32>,
+    bias_2: Array1<f32>,
+    embedding_table: Vec<(usize, Array1<f32>)>,
+}
 
 impl NeuralNetwork {
     pub fn backward(
         &mut self,
-        context: [usize; 2],
+        context: &Vec<usize>,
         target: usize,
         probs: &Array1<f32>,
         hidden_layer: &Array1<f32>,
@@ -35,18 +43,16 @@ impl NeuralNetwork {
         let d_bias_1 = d_hidden_relu.clone();
         let d_input = d_hidden_relu.dot(&self.weights_1.t());
 
-        // Get the first half and second half of the input, since forward joined them together
-        let embedding_dim = self.embedding_table.ncols();
-        let first_half = d_input.slice(s![0..embedding_dim]);
-        let second_half = d_input.slice(s![embedding_dim..]);
-
         // Update embedding table
-        self.embedding_table
-            .row_mut(context[0])
-            .scaled_add(-learning_rate, &first_half);
-        self.embedding_table
-            .row_mut(context[1])
-            .scaled_add(-learning_rate, &second_half);
+        let embedding_dim = self.embedding_table.ncols();
+        for i in 0..context.len() {
+            let start = i * embedding_dim;
+            let end = start + embedding_dim;
+            let slice = d_input.slice(s![start..end]);
+            self.embedding_table
+                .row_mut(context[i])
+                .scaled_add(-learning_rate, &slice);
+        }
 
         // Update all weights
         self.weights_2.scaled_add(-learning_rate, &d_weights_2);
@@ -56,4 +62,41 @@ impl NeuralNetwork {
 
         return loss;
     }
+
+    fn compute_gradients(
+        &self,
+        context: &Vec<usize>,
+        target: usize,
+        probs: &Array1<f32>,
+        hidden_layer: &Array1<f32>,
+        input: &Array1<f32>,
+    ) -> Gradients {
+        // Compute d_output:
+        let loss = -probs[target].ln();
+        let mut d_output = probs.clone();
+        d_output[target] -= 1.0;
+
+        // Compute output weight 2 layer gradients
+        let d_weights_2 = hidden_layer
+            .view()
+            .insert_axis(Axis(1))
+            .dot(&d_output.view().insert_axis(Axis(0)));
+        let d_bias_2 = d_output.clone();
+        let d_hidden = d_output.dot(&self.weights_2.t());
+
+        // The ReLU graident
+        let d_hidden_relu = d_hidden * hidden_layer.mapv(|x| if x > 0.0 { 1.0 } else { 0.0 });
+
+        // Compute output weight 1 layer gradients
+        let d_weights_1 = input
+            .view()
+            .insert_axis(Axis(1))
+            .dot(&d_hidden_relu.view().insert_axis(Axis(0)));
+        let d_bias_1 = d_hidden_relu.clone();
+        let d_input = d_hidden_relu.dot(&self.weights_1.t());
+        
+        return 
+    }
+
+    fn apply_gradients(&self, gradients: Vec<Gradients>, learning_rate: f32) {}
 }
