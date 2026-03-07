@@ -4,6 +4,7 @@ use std::io::{self, Write};
 
 // Register modules
 mod nn;
+mod rnn;
 mod tokenizer;
 mod training_data;
 mod version_helper;
@@ -34,32 +35,34 @@ fn main() {
     let path = "./models/";
     let new_version = version_helper::get_next_model_version_index(path);
 
-    let context_size = 5;
+    let embedding_dim = 32;
+    let hidden_size = 128;
 
-    let neural_network = if input == "y" {
+    if input == "y" {
         eprintln!("Building training data for model version: {}", new_version);
-        let training_data = training_data::build(&sentence_refs, &vocabulary, context_size);
+        let training_data = rnn::RecurrentNeuralNetwork::build(&sentence_refs, &vocabulary);
 
-        eprintln!("Initializing the neural network...");
-        let mut nn = nn::NeuralNetwork::new(vocabulary.size(), 16, 64, context_size);
+        eprintln!("Initializing the RNN...");
+        let mut rnn =
+            rnn::RecurrentNeuralNetwork::new(vocabulary.size(), embedding_dim, hidden_size);
 
         eprintln!("Starting training process...");
-        nn.train(&training_data, 10, 0.001, 256, 10.0, true);
+        rnn.train(training_data, 10, 0.001, 32, 5.0);
 
         eprintln!("Saving model...");
         let model_path = format!("{}model_{}.json", path, new_version);
-        match nn.save(&model_path) {
-            Ok(()) => {
-                println!("Succesfully trained and saved the model at: {}", model_path)
-            }
+        match rnn.save(&model_path) {
+            Ok(()) => println!(
+                "Successfully trained and saved the model at: {}",
+                model_path
+            ),
             Err(e) => println!("Failed to save the model after training, error: {}", e),
         };
-        nn
     } else if input == "n" {
         let model_path = format!("{}model_{}.json", path, (new_version - 1).to_string());
         println!("Loading model: {}", model_path);
-        match nn::NeuralNetwork::load(model_path.as_str()) {
-            Ok(mut nn) => {
+        match rnn::RecurrentNeuralNetwork::load(model_path.as_str()) {
+            Ok(mut rnn) => {
                 print!("Would you like to continue training this model? (Y/N): ");
                 io::stdout().flush().expect("Failed to flush.");
                 let mut input_string = String::new();
@@ -71,20 +74,19 @@ fn main() {
                 if input == "y" {
                     eprintln!("Building training data for model version: {}", new_version);
                     let training_data =
-                        training_data::build(&sentence_refs, &vocabulary, context_size);
+                        rnn::RecurrentNeuralNetwork::build(&sentence_refs, &vocabulary);
 
                     eprintln!("Continuing to train model...");
-                    nn.train(&training_data, 10, 0.001, 256, 10.0, true);
+                    rnn.train(training_data, 10, 0.001, 32, 5.0);
 
-                    match nn.save(&model_path) {
-                        Ok(()) => {
-                            println!("Succesfully trained and saved the model at: {}", model_path)
-                        }
+                    match rnn.save(&model_path) {
+                        Ok(()) => println!(
+                            "Successfully trained and saved the model at: {}",
+                            model_path
+                        ),
                         Err(e) => println!("Failed to save the model after training, error: {}", e),
                     };
                 }
-
-                nn
             }
             Err(e) => {
                 eprintln!("Failed to load model: {}", e);
@@ -95,6 +97,4 @@ fn main() {
         eprintln!("Invalid input.");
         return;
     };
-
-    neural_network.chat(&vocabulary, context_size);
 }
