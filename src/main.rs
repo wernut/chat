@@ -29,7 +29,6 @@ fn main() {
     io::stdin()
         .read_line(&mut input_string)
         .expect("Failed to read the line.");
-
     let input = input_string.trim();
 
     let path = "./models/";

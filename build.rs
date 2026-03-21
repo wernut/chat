@@ -1,3 +1,7 @@
+use std::env::consts::OS;
+
 fn main() {
-    println!("cargo:rustc-link-lib=framework=Accelerate");
+    if OS == "macos" {
+        println!("cargo:rustc-link-lib=framework=Accelerate");
+    }
 }
